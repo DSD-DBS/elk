@@ -1,6 +1,11 @@
 ## Debug with Capella Studio 7.0.0
-Current debugging setup with Capella Studio 7.0.0
-(capella-studio-7.0.0.202407171300-linux.gtk.x86_64) Capella Studio does not
+Overview of Environment:
+OS version (ubuntu 22.04 LTS)
+Capella Studio version (capella-studio-7.0.0.202407171300-linux.gtk.x86_64)
+Java version (elk only allows >=jdk 17)
+Maven version (3.9.9)
+
+Current debugging setup with Capella Studio 7.0.0 Capella Studio does not
 provide a fully functional debug shell for executing expressions or Java code
 live (i.e., like a REPL). However, variables and instances can still be
 inspected.
@@ -32,9 +37,10 @@ and for the debug configuration:
 ![Capella Debug Configuration](capella_debug_config.png)
 
 You can now set breakpoints in ELK .java files via the UI and step through the
-code.
+code. I never had to build the ELK plugin again and reinstall it in Capella
+again.
 
-## Requirements for Capella 7.0.0 for debugging:
+### Requirements for Capella 7.0.0 for debugging ELK plugin
 ELK has dependencies:
 - Google Gson (2.10 provided as a drop in)
 - Google Inject (3.0.0 provided as a drop in)
@@ -48,6 +54,15 @@ Installed Xtext that works:
 
 To check if dependencies are solved, install ELK from the ZIP once. The Eclipse
 wizard will indicate missing dependencies during installation.
+
+### Checklist
+[ ] Setup local ELK build with Maven
+[ ] Import ELK source into Capella Studio
+[ ] Define Capella + ELK Target
+[ ] Define debug configuration for Capella 7.0.0
+[ ] Meet all ELK requirements in Capella 7.0.0
+[ ] Place a breakpoint in GmfDiagramLayoutConnector.java
+[ ] Validate that the process is halted at the breakpoint
 
 ## Bug list
 ### No labels handled on nodes and edges (partially solved)
@@ -111,3 +126,10 @@ The bug: Hierarchical edges currently appear to be entirely unhandled.
 
 It is wise to test the fixes on a simple graph (without hierarchy). Then test
 progressively more complex hierarchical cases, such as those shown above.
+
+## Task at the end
+### Sharing working development setup
+Please document any improvements to the development/debugging setup of the ELK
+plugin in this document. Do this in a way that allows external developers to
+contribute fixes and enhancements efficiently. This includes the expected IDE,
+target platform, project import strategy and typical debugging workflow.
