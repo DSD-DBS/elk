@@ -340,6 +340,41 @@ public class GmfDiagramLayoutConnector implements IDiagramLayoutConnector {
         return mapping;
     }
     
+    /**
+     * Recursively searches within a figure hierarchy for the first figure that represents a label.
+     *
+     * @param figure the figure to start searching from
+     * @return the found label figure, or {@code null} if none is found
+     */
+    private IFigure findLabelFigureRecursive(final IFigure figure) {
+        // Prioritize known label types
+        if (figure instanceof WrappingLabel || figure instanceof Label) {
+            return figure;
+        }
+        // Check for the specific Sirius type observed by name suffix (adapt if necessary)
+        if (figure.getClass().getName().endsWith("ViewNodeFigure")) {
+            try {
+                java.lang.reflect.Method getNodeLabelMethod = figure.getClass().getMethod("getNodeLabel");
+                Object label = getNodeLabelMethod.invoke(figure);
+                if (label instanceof IFigure) {
+                    return (IFigure) label;
+                }
+            } catch (Exception getTextEx) {}
+            return figure;
+        }
+
+        // Recurse into children
+        for (Object child : figure.getChildren()) {
+            if (child instanceof IFigure) {
+                IFigure found = findLabelFigureRecursive((IFigure) child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null; // Not found
+    }
+
     @Override
     public void applyLayout(final LayoutMapping mapping, final IPropertyHolder settings) {
         boolean zoomToFit = settings.getProperty(CoreOptions.ZOOM_TO_FIT);
@@ -669,6 +704,87 @@ public class GmfDiagramLayoutConnector implements IDiagramLayoutConnector {
             parentElkNode.getChildren().add(childLayoutNode);
         }
         mapping.getGraphMap().put(childLayoutNode, nodeEditPart);
+
+        // Try to find an embedded label figure if no direct label edit part was processed.
+        // This acts as a fallback for labels embedded within the node's figure structure.
+        IFigure figureToSearch = null;
+        try {
+            // Prefer primaryShape if available via reflection
+            // Using getDeclaredMethod and setAccessible to access potentially non-public fields/methods if needed,
+            // but start with public getPrimaryShape(). Adapt if introspection reveals different access needs.
+            // This does never work. :(
+            java.lang.reflect.Method getPrimaryShapeMethod = nodeEditPart.getClass().getMethod("getPrimaryShape");
+            Object primaryShapeObj = getPrimaryShapeMethod.invoke(nodeEditPart);
+            if (primaryShapeObj instanceof IFigure) {
+                figureToSearch = (IFigure) primaryShapeObj;
+            }
+        } catch (Exception e) {
+            figureToSearch = nodeFigure; // nodeFigure is defined earlier in the method
+        }
+
+        if (figureToSearch != null) {
+            IFigure labelFigure = findLabelFigureRecursive(figureToSearch);
+
+            if (labelFigure != null) {
+                // Found a potential label figure. Extract info and create ElkLabel if needed.
+                String text = null;
+                Font font = null;
+                try {
+                    java.lang.reflect.Method getTextMethod = labelFigure.getClass().getMethod("getText");
+                    Object textResult = getTextMethod.invoke(labelFigure);
+                    if (textResult instanceof String) {
+                        text = (String) textResult;
+                        try {
+                            java.lang.reflect.Method getIconMethod = labelFigure.getClass().getMethod("getIcon");
+                            Object iconResult = getIconMethod.invoke(labelFigure);
+                            if (iconResult != null) {
+                                if (text != null && !text.startsWith("O ")) {
+                                    text = "O " + text;
+                                }
+                            }
+                        } catch (Exception iconEx) {}
+                    }
+                } catch (Exception getTextEx) {}
+
+                try {
+                    java.lang.reflect.Method getFontMethod = labelFigure.getClass().getMethod("getFont");
+                    Object fontResult = getFontMethod.invoke(labelFigure);
+                    if (fontResult instanceof Font) {
+                        font = (Font) fontResult;
+                    }
+                } catch (Exception getFontEx) {}
+
+                // If text was found, create the ElkLabel, avoiding duplicates
+                if (text != null && !text.isEmpty()) {
+                    final String finalText = text; // For lambda/inner class
+                    boolean labelExists = childLayoutNode.getLabels().stream()
+                            .anyMatch(lbl -> finalText.equals(lbl.getText()));
+
+                    if (!labelExists) {
+                        ElkLabel label = ElkGraphUtil.createLabel(childLayoutNode);
+                        label.setText(finalText);
+
+                        // Cannot map this label back easily as we lack the specific LabelEditPart.
+                        // Layout algorithms will use it, but applying changes back might be limited.
+
+                        Rectangle labelBounds = getAbsoluteBounds(labelFigure);
+                        Rectangle nodeFigureBounds = getAbsoluteBounds(nodeFigure); // Use nodeFigure bounds as reference
+                        label.setLocation(labelBounds.x - nodeFigureBounds.x, labelBounds.y - nodeFigureBounds.y);
+
+                        try {
+                            Dimension size = labelFigure.getPreferredSize();
+                            label.setDimensions(size.width, size.height);
+                            if (font != null && !font.isDisposed()) {
+                                label.setProperty(CoreOptions.FONT_NAME, font.getFontData()[0].getName());
+                                label.setProperty(CoreOptions.FONT_SIZE, font.getFontData()[0].getHeight());
+                            }
+                        } catch (SWTException swtEx) {
+                            // ignore exception and leave the label size to (0, 0)
+                        }
+                    }
+                }
+            }
+        }
 
         // store all the connections to process them later
         addConnections(mapping, nodeEditPart);
