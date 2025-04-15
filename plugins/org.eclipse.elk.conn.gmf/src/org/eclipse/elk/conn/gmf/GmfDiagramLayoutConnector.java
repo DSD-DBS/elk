@@ -822,6 +822,24 @@ public class GmfDiagramLayoutConnector implements IDiagramLayoutConnector {
             Label label = (Label) labelFigure;
             text = label.getText();
             font = label.getFont();
+        } else {
+            // Handle other potential label figure types, like the Sirius node label
+            try {
+                java.lang.reflect.Method getTextMethod = labelFigure.getClass().getMethod("getText");
+                Object textResult = getTextMethod.invoke(labelFigure);
+                if (textResult instanceof String) {
+                    text = (String) textResult;
+                    text = "O " + text;
+                }
+            } catch (Exception e) {}
+
+            try {
+                java.lang.reflect.Method getFontMethod = labelFigure.getClass().getMethod("getFont");
+                Object fontResult = getFontMethod.invoke(labelFigure);
+                if (fontResult instanceof Font) {
+                    font = (Font) fontResult;
+                }
+            } catch (Exception e) {}
         }
         
         if (text != null) {
@@ -1077,6 +1095,17 @@ public class GmfDiagramLayoutConnector implements IDiagramLayoutConnector {
                         // determine the label size.
                         labelText = "O " + labelText;
                     }
+                } else {
+                    // Handle other potential label figure types, like the Sirius one identified
+                    try {
+                        // Attempt to get text - most figures should have this
+                        java.lang.reflect.Method getTextMethod = labelFigure.getClass().getMethod("getText");
+                        Object textResult = getTextMethod.invoke(labelFigure);
+                        if (textResult instanceof String) {
+                            labelText = (String) textResult;
+                            labelText = "O " + labelText;
+                        }
+                    } catch (Exception e) {}
                 }
                 
                 if (labelText != null && labelText.length() > 0) {
