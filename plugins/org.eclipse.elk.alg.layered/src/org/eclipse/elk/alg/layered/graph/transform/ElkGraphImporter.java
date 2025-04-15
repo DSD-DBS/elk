@@ -961,6 +961,11 @@ class ElkGraphImporter {
         
         // create layered port, copying its position
         LPort lport = new LPort();
+        if (!elkport.getAllProperties().containsKey(LayeredOptions.PORT_BORDER_OFFSET)) {
+            double defaultOffset = LayeredOptions.PORT_BORDER_OFFSET.getDefault();
+            elkport.setProperty(LayeredOptions.PORT_BORDER_OFFSET, defaultOffset);
+        }
+        
         lport.copyProperties(elkport);
         lport.setSide(elkport.getProperty(LayeredOptions.PORT_SIDE));
         lport.setProperty(InternalProperties.ORIGIN, elkport);
