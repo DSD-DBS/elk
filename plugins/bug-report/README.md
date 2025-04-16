@@ -40,6 +40,12 @@ You can now set breakpoints in ELK .java files via the UI and step through the
 code. I never had to build the ELK plugin again and reinstall it in Capella
 again.
 
+You need to enable debug logs and measurements through Preferences:
+[Capella debug graph](capella_enable_debug_graph.png)
+
+Then you are able to see the layout debug graph in that view for each execution
+(input and output graph).
+
 ### Requirements for Capella 7.0.0 for debugging ELK plugin
 ELK has dependencies:
 - Google Gson (2.10 provided as a drop in)
